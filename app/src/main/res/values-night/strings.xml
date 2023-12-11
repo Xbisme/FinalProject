@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="humidityContent">Humidity</string>
+    <string name="temperatureContent">Temperature</string>
+    <string name="humidity">Humidity</string>
+    <string name="temperature">Temperature</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="organization_id">Organization ID:</string>
+    <string name="device_id">Device ID:</string>
+    <string name="auth_token">Auth Token:</string>
+    <string name="hide_auth_token">Hide Auth Token</string>
+    <string name="show_auth_token">Show Auth Token</string>
+    <string name="connected">Connected</string>
+</resources>
