@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
     private final static int ERROR_READ = 0;
 
     BluetoothDevice BLEModule = null;
-    UUID BLE_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    UUID BLE_UUID = UUID.fromString("0000FFE1-0000-1000-8000-00805F9B34FB");
 
 
     TextView time,hideShowToken, temperature, humidity;
@@ -51,8 +51,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        BluetoothManager bluetoothManager = getSystemService(BluetoothManager.class);
-        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+        //BluetoothManager bluetoothManager = getSystemService(BluetoothManager.class);
+        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
         time = findViewById(R.id.currentTime);
         temperature = findViewById(R.id.temperature);
@@ -82,12 +82,12 @@ public class MainActivity extends AppCompatActivity {
         final Observable<String> connectToBTObservable = Observable.create(emitter -> {
             Log.d(TAG, "Calling connectThread class");
             ConnectThread connectThread = new ConnectThread(BLEModule, BLE_UUID, handler);
-            connectThread.run();
+            connectThread.start();
 
             if (connectThread.getMmSocket().isConnected()) {
                 Log.d(TAG, "Calling ConnectedThread class");
                 ConnectedThread connectedThread = new ConnectedThread(connectThread.getMmSocket());
-                connectedThread.run();
+                connectedThread.start();
                 if (connectedThread.getValueRead() != null) {
                     emitter.onNext(connectedThread.getValueRead());
                 }
@@ -122,6 +122,7 @@ public class MainActivity extends AppCompatActivity {
         connected.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
                 //String btDevicesString="";
 
                 Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
@@ -134,14 +135,12 @@ public class MainActivity extends AppCompatActivity {
                         Log.d(TAG, "deviceName:" + deviceName);
                         Log.d(TAG, "deviceHardwareAddress:" + deviceHardwareAddress);
                         //btDevicesString=btDevicesString+deviceName+" || "+deviceHardwareAddress+"\n";
-                        if (deviceName.equals("T800ProMax")) {
+                        if (deviceName.equals("HMSoft")) {
                             Log.d(TAG, " found");
-                            BLE_UUID = device.getUuids()[0].getUuid();
                             BLEModule = device;
                             Log.d(TAG, "Button Pressed");
                             Log.i("Device Name", BLEModule.toString());
                             changedValue(device);
-                            break;
                         }
 
                     }
