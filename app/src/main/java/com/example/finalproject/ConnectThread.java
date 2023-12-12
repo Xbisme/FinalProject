@@ -43,7 +43,6 @@ public class ConnectThread extends Thread {
             } catch (IOException closeException) {
                 Log.e(TAG, "Could not close the client socket", closeException);
             }
-            return;
         }
     }
     public void cancel() {

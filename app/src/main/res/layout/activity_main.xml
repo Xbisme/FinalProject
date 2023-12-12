@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white"
@@ -93,7 +94,7 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_btn_disconnected"
         android:layout_below="@id/temperature"
-        android:text="@string/disconnected"
+        android:text="@string/connected"
         android:textColor="@color/white"
         android:textSize="25sp"
         android:textAllCaps="false"
@@ -109,6 +110,7 @@
         android:layout_below="@id/disconnected_btn"
         android:layout_marginTop="15dp"
         android:layout_marginHorizontal="10dp"
+        android:autofillHints="name"
         />
     <EditText
         android:id="@+id/organizationID_editText"
@@ -118,6 +120,8 @@
         android:layout_toEndOf="@id/organizationID_text"
         android:layout_below="@id/disconnected_btn"
         android:layout_marginEnd="10dp"
+        android:labelFor="@id/organizationID_editText"
+        android:inputType="text"
         />
     <TextView
         android:id="@+id/deviceID_text"
@@ -139,6 +143,9 @@
         android:layout_toEndOf="@id/organizationID_text"
         android:layout_below="@id/organizationID_text"
         android:layout_marginEnd="10dp"
+        android:labelFor="@id/deviceID_editText"
+        android:inputType="text"
+        android:autofillHints="name"
         />
     <TextView
         android:id="@+id/auth_text"
@@ -161,6 +168,8 @@
         android:layout_below="@id/deviceID_text"
         android:inputType="textPassword"
         android:layout_marginEnd="10dp"
+        android:labelFor="@+id/auth_editText"
+        android:autofillHints="name"
         />
     <TextView
         android:id="@+id/show_hide_token"

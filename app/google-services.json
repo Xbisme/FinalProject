@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "284918511926",
+    "project_id": "hunghieuiot-6b1e7",
+    "storage_bucket": "hunghieuiot-6b1e7.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:284918511926:android:5458cf14d1beb56cb75b97",
+        "android_client_info": {
+          "package_name": "com.example.finalproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4zbQ5RzPUK9zRRR_A_5HpA9mB1iGlZ_U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

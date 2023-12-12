@@ -11,4 +11,6 @@
     <string name="hide_auth_token">Hide Auth Token</string>
     <string name="show_auth_token">Show Auth Token</string>
     <string name="connected">Connected</string>
+    <string name= "hide">Hide Auth Token</string>
+    <string name="show">Show Auth Token</string>
 </resources>
