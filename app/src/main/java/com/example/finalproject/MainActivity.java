@@ -7,19 +7,21 @@ import androidx.appcompat.widget.AppCompatButton;
 
 
 
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
+
+
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
-import android.os.Message;
+
 import android.text.TextUtils;
 import android.text.method.HideReturnsTransformationMethod;
 import android.text.method.PasswordTransformationMethod;
@@ -27,6 +29,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,43 +45,95 @@ import com.google.firebase.database.ValueEventListener;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Set;
-import java.util.UUID;
-import io.reactivex.*;
-import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
+    private final static String TAG = MainActivity.class.getSimpleName();
 
-    private static final String TAG = "IOTLogs";
-    public static Handler handler;
-    private final static int ERROR_READ = 0;
+    public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
+    public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
 
-    BluetoothDevice BLEModule = null;
+
+    BluetoothGattCharacteristic characteristic;
+
+    private boolean mConnected = false;
+
+    private boolean isClick = false;
+
+    private boolean isConnectedFirebase = false;
+    private BluetoothGattCharacteristic mNotifyCharacteristic;
+
+
+    private String mDeviceAddress;
+
+
     BluetoothLeService mBluetoothLeService;
-    boolean mBound = false;
-    UUID BLE_UUID = UUID.fromString("0000FFE0-0000-1000-8000-00805F9B34FB");
+    String BLE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
+    String BLE_UUID1 = "0000ffe1-0000-1000-8000-00805f9b34fb";
 
 
     TextView time,hideShowToken, temperature, humidity;
 
     EditText organizationId, deviceId, authToken;
 
-    AppCompatButton connected, disconnected;
+    AppCompatButton connected, disconnected, connected1;
+
+
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
+
         @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            BluetoothLeService.LocalBinder binder = (BluetoothLeService.LocalBinder) service;
-            mBluetoothLeService = binder.getService();
-            mBound = true;
+        public void onServiceConnected(ComponentName componentName, IBinder service) {
+            mBluetoothLeService = ((BluetoothLeService.LocalBinder) service).getService();
+            if (!mBluetoothLeService.initialize()) {
+                Log.e(TAG, "Unable to initialize Bluetooth");
+                finish();
+            }
+
+            mBluetoothLeService.connect(mDeviceAddress);
         }
 
         @Override
-        public void onServiceDisconnected(ComponentName name) {
+        public void onServiceDisconnected(ComponentName componentName) {
             mBluetoothLeService = null;
-            mBound = false;
         }
     };
+
+    private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+                mConnected = true;
+                invalidateOptionsMenu();
+            } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
+                mConnected = false;
+                invalidateOptionsMenu();
+            } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+            } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+                    divideText(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
+            }
+        }
+
+
+    };
+
+    private void divideText(String stringExtra) {
+        String value = "";
+        for (int i = 0; i < stringExtra.length();i++) {
+            value += stringExtra.charAt(i);
+            if(stringExtra.charAt(i) == '\n') {
+                break;
+            }
+        }
+        String[] parts = value.split("; ");
+        String[] tempArray = parts[0].split(": ");
+        float temperatureFloat = Float.parseFloat(tempArray[1]);
+        String[] humArray = parts[1].split(": ");
+        float humidityFloat = Float.parseFloat(humArray[1]);
+        String tempString = temperatureFloat + "°C";
+        String humiString = humidityFloat+ "%";
+        temperature.setText(tempString);
+        humidity.setText(humiString);
+    }
 
 
     @Override
@@ -86,6 +141,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        final Intent intent = getIntent();
+        mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
 
         findViewById(R.id.main_layout).setOnClickListener(view -> {
             organizationId.clearFocus();
@@ -96,54 +153,20 @@ public class MainActivity extends AppCompatActivity {
             imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
         });
 
-        Intent serviceIntent = new Intent(this, BluetoothLeService.class);
-        boolean check = bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE);
-        if (check) Log.i("oke", "oke");
-        BluetoothManager bluetoothManager = getSystemService(BluetoothManager.class);
-        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
-
         time = findViewById(R.id.currentTime);
         temperature = findViewById(R.id.temperature);
         humidity = findViewById(R.id.humidity);
         hideShowToken = findViewById(R.id.show_hide_token);
-
+        temperature.setText(getIntent().getStringExtra(BluetoothLeService.EXTRA_DATA));
         organizationId = findViewById(R.id.organizationID_editText);
         deviceId = findViewById(R.id.deviceID_editText);
         authToken = findViewById(R.id.auth_editText);
 
         connected = findViewById(R.id.connected_btn);
+        connected1 = findViewById(R.id.connected1_btn);
         disconnected = findViewById(R.id.disconnected_btn);
 
-        handler = new Handler(Looper.getMainLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-                switch (msg.what) {
 
-                    case ERROR_READ:
-                        String arduinoMsg = msg.obj.toString(); // Read message from BLE
-                        Log.e("Error in BLE System", arduinoMsg);
-                        break;
-                }
-            }
-        };
-
-        final Observable<String> connectToBTObservable = Observable.create(emitter -> {
-            Log.d(TAG, "Calling connectThread class");
-            ConnectThread connectThread = new ConnectThread(BLEModule, BLE_UUID, handler);
-            connectThread.start();
-
-            if (connectThread.getMmSocket().isConnected()) {
-                Log.d(TAG, "Calling ConnectedThread class");
-                ConnectedThread connectedThread = new ConnectedThread(connectThread.getMmSocket());
-                connectedThread.start();
-                if (connectedThread.getValueRead() != null) {
-                    emitter.onNext(connectedThread.getValueRead());
-                }
-                connectedThread.cancel();
-            }
-            connectThread.cancel();
-            emitter.onComplete();
-        });
 
         DateFormat df = new SimpleDateFormat("h:mm a");
         String currentTime = df.format(Calendar.getInstance().getTime());
@@ -167,70 +190,39 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        connected.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String organizationText = String.valueOf(organizationId.getText());
-                String deviceText = String.valueOf(deviceId.getText());
-                String authText = String.valueOf(authToken.getText());
-                if(TextUtils.isEmpty(organizationText)) {
-                    organizationId.setError("Please enter your Organization Id");
-                    organizationId.requestFocus();
-                    return;
-                }
-                else if(TextUtils.isEmpty(deviceText)) {
-                    deviceId.setError("Please enter your Device Id");
-                    deviceId.requestFocus();
-                    return;
-                }else if(TextUtils.isEmpty(authText)) {
-                    authToken.setError("Please enter your Auth Token");
-                    authToken.requestFocus();
-                    return;
-                }
-                if(connected.getText().equals("Connected")) {
-
-                    DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference();
-                    databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-                            ReadWriteData writeData = snapshot.getValue(ReadWriteData.class);
-
-                            if(writeData != null){
-                                String organization = writeData.getOrganizationID();
-                                String device = writeData.getDeviceID();
-                                String auth = writeData.getAuthToken();
-                                if (TextUtils.equals(organization, organizationText)
-                                        && TextUtils.equals(device, deviceText)
-                                        && TextUtils.equals(auth, authText)) {
-                                    Toast.makeText(getBaseContext(),"Connect Success",Toast.LENGTH_SHORT).show();
-                                    changeUi(writeData);
-                                } else {
-                                    Toast.makeText(getBaseContext(),"Something is wrong, please check your input!",Toast.LENGTH_SHORT).show();
-                                    Log.e("Failed binding", "Failed binding");
-                                }
-                            }
-                        }
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
-                        }
-                    });
-                }
-                else {
-                    connected.setText(R.string.connected);
-                    organizationId.setText("");
-                    deviceId.setText("");
-                    authToken.setText("");
-                }
+        connected.setOnClickListener(v -> {
+            String organizationText = String.valueOf(organizationId.getText());
+            String deviceText = String.valueOf(deviceId.getText());
+            String authText = String.valueOf(authToken.getText());
+            String temperatureText = temperature.getText().toString();
+            String humidityText = humidity.getText().toString();
+            if(TextUtils.isEmpty(organizationText)) {
+                organizationId.setError("Please enter your Organization Id");
+                organizationId.requestFocus();
+                return;
             }
-            private void changeUi(ReadWriteData writeData) {
-                String temp = writeData.getTemperature();
-                String humi = writeData.getHumidity();
-                temperature.setText(temp);
-                humidity.setText(humi);
+            else if(TextUtils.isEmpty(deviceText)) {
+                deviceId.setError("Please enter your Device Id");
+                deviceId.requestFocus();
+                return;
+            }else if(TextUtils.isEmpty(authText)) {
+                authToken.setError("Please enter your Auth Token");
+                authToken.requestFocus();
+                return;
+            }
+            if(!isConnectedFirebase) {
+                isConnectedFirebase = true;
                 connected.setText(R.string.disconnected);
+                updateDatatoFirebase(organizationText,deviceText,authText,temperatureText,humidityText);
+
             }
-
-
+            else {
+                isConnectedFirebase = false;
+                connected.setText(R.string.connected);
+                organizationId.setText("");
+                deviceId.setText("");
+                authToken.setText("");
+            }
 
         });
         Handler updateHandler = new Handler();
@@ -239,117 +231,134 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 try {
-                    updateDataFromFirebase();
+                    if(mConnected == true && isClick == true) {
+                        getValue();
+                    }
+                    if(isConnectedFirebase == true) {
+                        String organizationText = String.valueOf(organizationId.getText());
+                        String deviceText = String.valueOf(deviceId.getText());
+                        String authText = String.valueOf(authToken.getText());
+                        String temperatureText = temperature.getText().toString();
+                        String humidityText = humidity.getText().toString();
+                        updateDatatoFirebase(organizationText,deviceText,authText,temperatureText,humidityText);
+                    }
+
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     Log.e(TAG, "Error in updateDataRunnable: " + e.getMessage());
                 } finally {
-                    updateHandler.postDelayed(this, 2000);
+                    updateHandler.postDelayed(this, 1000);
                 }
             }
 
-            private void updateDataFromFirebase() {
-                DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference();
-                databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        try {
-                            ReadWriteData writeData = snapshot.getValue(ReadWriteData.class);
-
-                            if (writeData != null) {
-                                if (connected.getText().equals("Disconnected")) {
-                                    String temperatureValue = snapshot.child("temperature").getValue(String.class);
-                                    String humidityValue = snapshot.child("humidity").getValue(String.class);
-                                    temperature.setText(temperatureValue);
-                                    humidity.setText(humidityValue);
-                                }
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            Log.e(TAG, "Error in onDataChange: " + e.getMessage());
-                        }
-                    }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Log.e(TAG, "Error in onCancelled: " + error.getMessage());
-                    }
-                });
-            }
         };
 
-        updateHandler.postDelayed(updateDataRunnable, 2000);
+        updateHandler.postDelayed(updateDataRunnable, 1000);
 
 
 
 
-        disconnected.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (disconnected.getText().equals("Disconnected")) {
-                    BLEModule = null;
-                    BLE_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-
-                    temperature.setText("");
-                    humidity.setText("");
-
-                    disconnected.setText(R.string.connected);
-                    Log.d(TAG, "Disconnected from the Bluetooth device");
-                }
-                else {
-                    if (!bluetoothAdapter.isEnabled()) {
-                        // Mở Bluetooth
-                        Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                        startActivityForResult(enableBtIntent, 1);
-                    }
-                    Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-
-                    if (pairedDevices.size() > 0) {
-
-                        for (BluetoothDevice device : pairedDevices) {
-                            String deviceName = device.getName();
-                            String deviceHardwareAddress = device.getAddress();
-                            Log.d(TAG, "deviceName:" + deviceName);
-                            Log.d(TAG, "deviceHardwareAddress:" + deviceHardwareAddress);
-                            //btDevicesString=btDevicesString+deviceName+" || "+deviceHardwareAddress+"\n";
-                            if (deviceName.equals("T800ProMax")) {
-                                Log.d(TAG, " found");
-                                BLEModule = device;
-                                Log.d(TAG, "Button Pressed");
-                                Log.i("Device Name", BLEModule.toString());
-                                disconnected.setText(R.string.disconnected);
-                                changedValue(device);
-                            }
-
-                        }
-                    }
-
-                }
+        connected1.setOnClickListener(v -> {
+            if(!mConnected) {
+                mBluetoothLeService.connect(mDeviceAddress);
             }
-            private void changedValue(BluetoothDevice device) {
+            isClick = true;
+            getValue();
+        });
+        disconnected.setOnClickListener(v -> {
 
-                if (device != null) {
-                    Log.i("Success","Connected Success");
-                    connectToBTObservable.
-                            observeOn(AndroidSchedulers.mainThread()).
-                            subscribeOn(Schedulers.io()).
-                            subscribe(valueRead -> {
-                                temperature.setText("1");
-                                humidity.setText("2");
-                            });
+                temperature.setText("");
+                humidity.setText("");
+                mBluetoothLeService.disconnect();
+                Log.d(TAG, "Disconnected from the Bluetooth device");
+                isClick = false;
+                mConnected = false;
+            });
+        Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
+        bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
+    }
+
+    private void updateDatatoFirebase(String organizationText, String deviceText, String authText, String temperatureText, String humidityText) {
+        DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference(organizationText);
+        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                ReadWriteData writeData = new ReadWriteData(organizationText,deviceText,authText,temperatureText,humidityText);
+
+                if(writeData != null){
+                    databaseReference.setValue(writeData);
+                } else {
+                    Toast.makeText(getBaseContext(),"Something is wrong, please check your input!",Toast.LENGTH_SHORT).show();
+                    Log.e("Failed binding", "Failed binding");
                 }
-                else {
-                    Log.e("Failed","Connected Failed");
-                }
+
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
             }
         });
     }
+
+    private void getValue() {
+        String uuid;
+        for (BluetoothGattService gattService : mBluetoothLeService.getSupportedGattServices()) {
+            uuid = gattService.getUuid().toString();
+            if(uuid.equals(BLE_UUID)) {
+
+                for (BluetoothGattCharacteristic gattCharacteristic : gattService.getCharacteristics()) {
+                    uuid = gattCharacteristic.getUuid().toString();
+                    if(uuid.equals(BLE_UUID1)) {
+                        characteristic = gattCharacteristic;
+                    }
+                }
+                final int charPro = characteristic.getProperties();
+                if((charPro | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
+                    if (mNotifyCharacteristic != null) {
+                        mBluetoothLeService.setCharacteristicNotification(mNotifyCharacteristic,false);
+                        mNotifyCharacteristic = null;
+                    }
+                    mBluetoothLeService.readCharacteristic(characteristic);
+                    if((charPro | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
+                        mNotifyCharacteristic = characteristic;
+                        mBluetoothLeService.setCharacteristicNotification(
+                                characteristic, true);
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+        if (mBluetoothLeService != null) {
+            final boolean result = mBluetoothLeService.connect(mDeviceAddress);
+            Log.d(TAG, "Connect request result=" + result);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(mGattUpdateReceiver);
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mBound) {
-            unbindService(mServiceConnection);
-            mBound = false;
-        }
+        unbindService(mServiceConnection);
+        mBluetoothLeService = null;
     }
+    private static IntentFilter makeGattUpdateIntentFilter() {
+        final IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
+        intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+        return intentFilter;
+    }
+
 }
+

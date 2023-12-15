@@ -67,7 +67,7 @@
         android:id="@+id/temperature"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="30.0°C"
+        android:text=""
         android:textSize="15sp"
         android:textStyle="bold"
         android:textColor="@color/black"
@@ -79,7 +79,7 @@
         android:id="@+id/humidity"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="45.0%"
+        android:text=""
         android:textSize="15sp"
         android:textStyle="bold"
         android:textColor="@color/black"
@@ -89,15 +89,28 @@
         android:layout_marginVertical="10dp"
         />
     <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/disconnected_btn"
+        android:id="@+id/connected1_btn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_btn_disconnected"
+        android:background="@drawable/bg_btn_connected"
         android:layout_below="@id/temperature"
         android:text="@string/connected"
         android:textColor="@color/white"
         android:textSize="25sp"
         android:textAllCaps="false"
+        android:layout_marginHorizontal="10dp"
+        />
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/disconnected_btn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_btn_disconnected"
+        android:layout_below="@id/connected1_btn"
+        android:text="@string/disconnected"
+        android:textColor="@color/white"
+        android:textSize="25sp"
+        android:textAllCaps="false"
+        android:layout_marginTop="20dp"
         android:layout_marginHorizontal="10dp"
         />
     <TextView
